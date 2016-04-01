@@ -1,0 +1,111 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package localspider;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ *
+ * @author Umad Rai
+ */
+public class IndexingThread implements  Runnable {
+
+    List<String> paths;
+    ConcurrentHashMap<String, List<String>> index;
+    int start, stop;
+    public IndexingThread(List<String> paths, int start, int stop, ConcurrentHashMap<String, List<String>> indexing) {
+        this.index=indexing;
+        this.paths=paths;
+        this.start=start;
+        this.stop=stop;
+    }
+    
+    public void run() {
+        try {
+            do_Indexing();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public void  do_Indexing() throws IOException {
+        File file_n;
+        for(int i=start;i<stop;i++){
+            file_n = new File(paths.get(i));
+            if (file_n.isFile()) {
+                // First store file name and splits on spaces and extension
+                List<String> list_c;
+                String s = file_n.getName();
+
+                String a_path = file_n.getAbsolutePath();
+                String splitt[] = s.split("\\.(?=[^\\.]+$)");       //splitt contains splitted elements
+                list_c = index.get(splitt[splitt.length - 1]);
+                if (list_c != null) {
+                    list_c.add(a_path);
+                } else {
+                    List<String> listcol = Collections.synchronizedList(new ArrayList<String>());
+                    listcol.add(a_path);
+                    index.put(splitt[splitt.length - 1], listcol);
+                }
+                String f[];
+                if (splitt.length>1)
+                    f= splitt[0].split("\\s+");
+                else
+                    f=s.split("\\s+");;
+                // store space splits names
+                for (int k = 0; k < f.length; k++) {
+                    list_c = index.get(f[k]);
+                    if (list_c != null) {
+                        list_c.add(a_path);
+                    } else {
+                        List<String> listcol = Collections.synchronizedList(new ArrayList<String>());
+                        listcol.add(a_path);
+                        index.put(f[k], listcol);
+                    }
+                }
+
+                list_c = index.get(s);
+                if (list_c != null) {
+                    list_c.add(a_path);
+                } else {
+                    List<String> listcol = Collections.synchronizedList(new ArrayList<String>());
+                    listcol.add(a_path);
+                    index.put(s, listcol);
+                }
+
+                if (getExtension(s).equalsIgnoreCase("txt")) {        // if name matches delete the file
+                    FileReader file_read = new FileReader(a_path);
+                    BufferedReader buffer = new BufferedReader(file_read);
+                    String sCurrentLine;
+                    while ((sCurrentLine = buffer.readLine()) != null) {
+                        String p[] = sCurrentLine.split("\\s+");
+                        for (int k = 0; k < p.length; k++) {
+                            list_c = index.get(p[k]);
+                            if (list_c != null) {
+                                list_c.add(a_path);
+                            } else {
+                                List<String> listcol = Collections.synchronizedList(new ArrayList<String>());
+                                listcol.add(a_path);
+                                index.put(p[k], listcol);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    public  String getExtension(String filename) {
+        if (filename == null) {
+            return null;
+        }
+         String[] splitted = filename.split("\\.");
+         String ext = splitted[splitted.length-1];
+         return ext;  
+    }
+}
